@@ -1,14 +1,14 @@
 {
-  "name": "wapilot-backend",
+  "name": "wapilot-personal-whatsapp",
   "version": "1.0.0",
   "private": true,
-  "description": "Starter backend for a controlled WhatsApp apology-message planner",
+  "description": "Personal WhatsApp QR automation with reply-to-stop control",
   "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
+  "scripts": {"start": "node server.js"},
+  "engines": {"node": ">=20"},
   "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "qrcode": "^1.5.4",
+    "whatsapp-web.js": "^1.34.1"
   }
 }
