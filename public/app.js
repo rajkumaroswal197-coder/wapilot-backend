@@ -1,49 +1,78 @@
 const $ = id => document.getElementById(id);
-let lastJobId = null;
-async function api(path, options={}) {
-  const res = await fetch('/api'+path, {headers:{'Content-Type':'application/json',...(options.headers||{})},...options});
+let currentTab = 'qr';
+let previousQr = '';
+
+function notice(message, error=false) {
+  $('notice').textContent = message;
+  $('notice').style.color = error ? '#ff9aa8' : '#9eabc0';
+}
+async function api(url, options={}) {
+  const res = await fetch(url, { headers:{'Content-Type':'application/json'}, ...options });
   const data = await res.json().catch(()=>({}));
-  if(!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
   return data;
 }
-function notify(title, body) {
-  if ('Notification' in window && Notification.permission === 'granted') new Notification(title,{body});
+function setTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  $('qrPane').classList.toggle('hidden',tab!=='qr');
+  $('pairPane').classList.toggle('hidden',tab!=='pair');
+  if (tab==='qr') api('/api/qr',{method:'POST',body:'{}'}).catch(()=>{});
+}
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+
+async function refresh() {
+  try {
+    const s = await api('/api/status');
+    const pill = $('status');
+    pill.textContent = s.state[0].toUpperCase()+s.state.slice(1);
+    pill.className = 'pill '+(s.state==='connected'?'good':s.state==='disconnected'?'bad':'');
+    $('totalSent').textContent = s.totalSent;
+    $('jobSent').textContent = s.jobSent;
+    $('jobState').textContent = s.active?'Running':'Stopped';
+    if (s.qrDataUrl && currentTab==='qr' && s.qrDataUrl!==previousQr) {
+      previousQr=s.qrDataUrl;
+      $('qrBox').innerHTML=`<img alt="WhatsApp QR code" src="${s.qrDataUrl}">`;
+    } else if (!s.qrDataUrl && s.state!=='connected' && !s.pairingCode && currentTab==='qr' && !previousQr) {
+      $('qrBox').innerHTML='<div class="loader"></div><span>Waiting for QR…</span>';
+    }
+    if (s.pairingCode && currentTab==='pair') $('codeBox').textContent=s.pairingCode;
+    if (s.state==='connected') $('qrBox').innerHTML='<strong>WhatsApp connected ✓</strong>';
+    if (s.lastError) notice(s.lastError,true);
+  } catch(e) { notice(e.message,true); }
 }
 async function loadContacts() {
   try {
-    const data=await api('/contacts'); const sel=$('contact'); sel.innerHTML='<option value="">Select a contact</option>';
-    data.contacts.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name;sel.appendChild(o)});
-    sel.disabled=false; $('start').disabled=false; $('feedback').textContent=`${data.contacts.length} contacts loaded.`;
-  } catch(e){$('feedback').textContent=e.message}
+    const data=await api('/api/contacts');
+    $('contact').innerHTML='<option value="">Select a contact</option>'+data.contacts.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+    notice(`${data.contacts.length} chats loaded.`);
+  } catch(e) { notice(e.message,true); }
 }
-async function refresh() {
-  try {
-    const s=await api('/status');
-    $('state').textContent=s.state; $('dot').classList.toggle('on',s.connected);
-    $('qr').style.display=s.qr?'block':'none'; $('qr').src=s.qr||'';
-    $('qrhelp').style.display=s.qr?'block':'none'; $('connected').classList.toggle('hidden',!s.connected);
-    $('loadContacts').disabled=!s.connected;
-    $('error').textContent=s.lastError||'';
-    if(s.connected && $('contact').disabled) await loadContacts();
-    const j=s.activeJob;
-    if(j){
-      $('activity').textContent=`Status: ${j.status} · Sent: ${j.sent}/${j.maxMessages}${j.stopReason?' · '+j.stopReason:''}`;
-      $('stop').disabled=j.status!=='running'; $('start').disabled=!s.connected || j.status==='running';
-      if(lastJobId!==j.id && j.status==='running') lastJobId=j.id;
-      if(j.status==='stopped' && j.stopReason?.includes('Reply received')) {
-        notify('waPilot stopped','The selected contact replied. No more messages will be sent.');
-        $('feedback').textContent='Reply received — automation stopped.';
-      }
-    } else {$('stop').disabled=true;$('start').disabled=!s.connected}
-  } catch(e){$('state').textContent='Server not reachable';$('feedback').textContent=e.message}
-}
-$('loadContacts').onclick=loadContacts;
-$('start').onclick=async()=>{
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+$('getCode').addEventListener('click',async()=>{
   try{
-    if('Notification'in window && Notification.permission==='default') await Notification.requestPermission();
-    const data=await api('/start',{method:'POST',body:JSON.stringify({chatId:$('contact').value,message:$('message').value,maxMessages:Number($('count').value),intervalSeconds:Number($('interval').value)})});
-    $('feedback').textContent='Automation started.'; lastJobId=data.job.id; await refresh();
-  }catch(e){$('feedback').textContent=e.message}
-};
-$('stop').onclick=async()=>{try{await api('/stop',{method:'POST'});$('feedback').textContent='Stopped manually.';await refresh()}catch(e){$('feedback').textContent=e.message}};
-setInterval(refresh,2500); refresh();
+    $('getCode').disabled=true; $('codeBox').textContent='…';
+    const d=await api('/api/pair',{method:'POST',body:JSON.stringify({phone:$('phone').value})});
+    $('codeBox').textContent=d.pairingCode;
+    notice('Enter this code in WhatsApp Linked Devices.');
+  }catch(e){$('codeBox').textContent='--------';notice(e.message,true);}
+  finally{$('getCode').disabled=false;}
+});
+$('refreshQr').addEventListener('click',async()=>{
+  previousQr=''; try{await api('/api/qr',{method:'POST',body:'{}'});}catch(e){}
+  notice('QR refresh requested.');
+});
+$('loadContacts').addEventListener('click',loadContacts);
+$('start').addEventListener('click',async()=>{
+  try{
+    const body={chatId:$('contact').value,message:$('message').value,count:Number($('count').value),interval:Number($('interval').value)};
+    const d=await api('/api/start',{method:'POST',body:JSON.stringify(body)});
+    notice(d.message); refresh();
+  }catch(e){notice(e.message,true);}
+});
+$('stop').addEventListener('click',async()=>{
+  try{await api('/api/stop',{method:'POST',body:'{}'});notice('Stopped.');refresh();}
+  catch(e){notice(e.message,true);}
+});
+setInterval(refresh,2000);
+refresh();
