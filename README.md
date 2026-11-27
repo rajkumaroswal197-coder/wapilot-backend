@@ -1,28 +1,30 @@
-# waPilot backend
+# waPilot — Personal WhatsApp QR automation
 
-## What this backend does
-- Runs an Express API.
-- Stores bounded apology-message plans in `data/jobs.json`.
-- Supports listing plans and stopping a plan.
-- It does **not** log in to personal WhatsApp or send WhatsApp messages.
+## What it does
+- Connects to a personal WhatsApp account by scanning a WhatsApp Web QR.
+- Loads one-to-one chats so you can select one contact.
+- Sends a chosen message on a timer.
+- Stops immediately when an incoming message arrives from that selected chat.
+- Shows status in the browser and requests browser notification permission.
+
+## Important safety limits
+This build deliberately caps each run at **3 messages**, requires at least **60 seconds** between messages, and allows manual stop. It is not an unlimited message sender. Use it only for a genuine, appropriate conversation and stop if the recipient does not want further contact.
+
+## Important WhatsApp warning
+This uses the unofficial `whatsapp-web.js` browser automation library, not an official WhatsApp API. WhatsApp may log out, break compatibility, or restrict the account. Use at your own risk. Never share the QR, session folder, or API key.
 
 ## Run locally
-Install Node.js, then in this folder run:
-
+Requires Node.js 20+ and Chromium.
 ```bash
 npm install
 npm start
 ```
+Open `http://localhost:3000`. Scan the QR from WhatsApp → Linked devices → Link a device.
 
-Open `http://localhost:3000/api/health`.
+## Deploying
+Deploy as a Docker web service on a host that permits Chromium and provides a **persistent disk/volume**. Mount the persistent volume at `/app/.wwebjs_auth` so the linked-device session survives restarts. Keep one instance only; do not scale to multiple replicas. A sleeping/free web service will not reliably keep automation running. Add an access-control layer before exposing this publicly.
 
-## API
-- `GET /api/health`
-- `GET /api/jobs`
-- `POST /api/jobs` JSON: `{"contact":"Rahul","phone":"+919000000001","count":2}`
-- `POST /api/jobs/:id/stop`
-
-The starter limits each plan to 1–3 messages and creates drafts only. It deliberately has no unofficial WhatsApp Web login or bulk-send automation.
-
-## Real WhatsApp delivery
-For supported automated delivery, connect an eligible WhatsApp Business Platform / Cloud API account and implement its approved messaging rules, consent checks, templates where required, and webhook verification. A normal personal WhatsApp account cannot simply be logged into this Cloud API.
+## Notes
+- The browser page must remain open to display live status/notifications, but the Node service performs the timed sends and reply detection.
+- Browser notifications require permission and may be suppressed by Android/browser battery settings.
+- This project does not send anything until you scan the QR, choose a contact, and press Start.
