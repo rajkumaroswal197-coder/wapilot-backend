@@ -1,36 +1,52 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>waPilot</title><link rel="stylesheet" href="style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>waPilot</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<main class="wrap">
-  <header><div class="logo">W</div><div><h1>waPilot</h1><p>Personal WhatsApp automation</p></div></header>
-  <section class="panel">
-    <div class="statusline"><span id="dot" class="dot"></span><b id="state">Connecting…</b></div>
-    <p class="hint">WhatsApp Web QR connection</p>
-    <div id="qrbox"><img id="qr" alt="WhatsApp QR code"><p id="qrhelp">Open WhatsApp → Linked devices → Link a device, then scan this QR.</p></div>
-    <div id="connected" class="hidden"> <span class="check">✓</span> WhatsApp connected</div>
-    <button id="loadContacts" class="secondary" disabled>Refresh contacts</button>
-  </section>
-
-  <section class="panel">
-    <h2>Automation</h2>
-    <label>Choose contact</label><select id="contact" disabled><option value="">Connect WhatsApp first</option></select>
-    <label>Message</label><input id="message" maxlength="500" value="Sorry" autocomplete="off">
-    <div class="grid">
-      <div><label>Number of messages (max 3)</label><select id="count"><option>1</option><option selected>2</option><option>3</option></select></div>
-      <div><label>Interval</label><select id="interval"><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option><option value="600">10 minutes</option></select></div>
-    </div>
-    <p class="notice">Safety: limited to 3 messages per run. Any reply from the selected contact stops sending immediately. You can also stop manually.</p>
-    <div class="actions"><button id="start" disabled>Start automation</button><button id="stop" class="danger" disabled>Stop</button></div>
-    <p id="feedback" class="feedback">Waiting for WhatsApp connection…</p>
-  </section>
-  <section class="panel">
-    <h2>Activity</h2><p id="activity">No automation started.</p><p id="error" class="error"></p>
-  </section>
-  <footer>Keep this service running while automation is active. Unofficial WhatsApp Web automation may be restricted by WhatsApp.</footer>
-</main>
-<script src="app.js"></script>
-</body></html>
+  <main class="wrap">
+    <header><div class="logo">w</div><div><h1>waPilot</h1><p>Personal WhatsApp dashboard</p></div><span id="status" class="pill">Connecting…</span></header>
+    <section class="panel">
+      <div class="section-head"><div><h2>Connect WhatsApp</h2><p>Link a device using QR or phone number</p></div></div>
+      <div class="tabs"><button class="tab active" data-tab="qr">QR Login</button><button class="tab" data-tab="pair">8-digit Code</button></div>
+      <div id="qrPane" class="login-pane">
+        <div id="qrBox" class="qrbox"><div class="loader"></div><span>Waiting for QR…</span></div>
+        <p class="hint">WhatsApp → Linked devices → Link a device → Scan QR</p>
+        <button id="refreshQr" class="ghost">Switch / Refresh QR</button>
+      </div>
+      <div id="pairPane" class="login-pane hidden">
+        <label>Phone number with country code</label>
+        <input id="phone" inputmode="numeric" placeholder="91XXXXXXXXXX">
+        <button id="getCode" class="primary">Get pairing code</button>
+        <div id="codeBox" class="codebox">--------</div>
+        <p class="hint">On WhatsApp: Linked devices → Link a device → Link with phone number instead.</p>
+      </div>
+    </section>
+    <section class="stats">
+      <div class="stat"><span>Total sent</span><strong id="totalSent">0</strong></div>
+      <div class="stat"><span>This run</span><strong id="jobSent">0</strong></div>
+      <div class="stat"><span>Automation</span><strong id="jobState">Stopped</strong></div>
+    </section>
+    <section class="panel">
+      <h2>Message automation</h2>
+      <p class="hint">Choose one chat. It stops when that contact replies or when you press Stop.</p>
+      <label>Contact</label>
+      <div class="inline"><select id="contact"><option value="">Connect WhatsApp first</option></select><button id="loadContacts" class="ghost small">Refresh</button></div>
+      <label>Message</label>
+      <textarea id="message" rows="3" maxlength="1000" placeholder="Type your message…"></textarea>
+      <div class="two">
+        <div><label>Messages this run (max 5)</label><input id="count" type="number" min="1" max="5" value="3"></div>
+        <div><label>Interval (seconds, min 60)</label><input id="interval" type="number" min="60" max="3600" value="60"></div>
+      </div>
+      <div class="actions"><button id="start" class="primary">Start</button><button id="stop" class="danger">Stop</button></div>
+      <p id="notice" class="notice">Ready.</p>
+    </section>
+    <footer>Use responsibly. WhatsApp may restrict unofficial linked-device clients.</footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
